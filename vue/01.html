@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <script>
+    //1.事件触发器 (发布订阅者模式)
+    class EventEmitter {
+      constructor() {
+        this.subs = Object.create(null)
+      }
+      
+      //(事件名称， 处理函数)
+      $on(eventType, handler) {
+        this.subs[eventType] = this.subs[eventType] || []
+        this.subs[eventType].push(handler)
+      }
+
+      //触发事件
+      $emit(eventType, arg) {
+        if (this.subs[eventType]) {
+          this.subs[eventType].forEach(handler => {
+            handler(arg)
+          })
+        }
+      }
+    }
+
+
+    //2.观察者模式 （夸类订阅）
+    class Dep {
+      constructor() {
+        //记录所有的订阅者
+        this.subs = []
+      }
+      
+      addSub(sub) {
+        if (sub && sub.update) {
+          this.subs.push(sub)
+        }
+      }
+      //发布通知
+      notify() {
+        this.subs.forEach(sub => {
+          sub.update()
+        })
+      }
+    }
+
+    //订阅者-观察者 (群众)
+    class Watcher {
+      update() {
+        console.log('update')
+      }
+    }
+
+
+  </script>
+</body>
+</html>

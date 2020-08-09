@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <div id="app">
+    <h1>插值表达式</h1>
+    <h3>msg: {{msg}}</h3>
+    <h3>count: {{count}}</h3>
+    <h1>v-text: msg</h1>
+    <h1 v-text="msg"></h1>
+    <h1>
+      <h2>
+        <h3 v-text="msg"></h3>
+        <h3>count: {{count}}, msg: {{msg}}</h3>
+      </h2>
+    </h1>
+    <h1>v-model</h1>
+    <input type="text" v-model="msg">
+    <input type="text" v-model="count">
+  </div>
+  <script src="./js/dep.js"></script>
+  <script src="./js/watcher.js"></script>
+  <script src="./js/observer.js"></script>
+  <script src="./js/compiler.js"></script>
+  <script src="./js/vue.js"></script>
+  <script>
+    vm = new Vue({
+      el:'#app',
+      data: {
+        msg: '111',
+        count: 100
+      }
+
+    })
+  </script>
+</body>
+</html>
