@@ -71,10 +71,12 @@ class Compiler {
 
   //编译文本节点， 处理差值表达式 （处理 文本 节点）
   compileText(node) {
-    let reg = /\{\{(.+?)\}\}/
+    let reg = /\{\{(.+?)\}\}/g
     let value = node.textContent
+    console.log(value.replace(reg, '000'));
     if (reg.test(value)) {
       let key = RegExp.$1.trim()
+      // console.log("1::",value.match(reg));
       node.textContent = value.replace(reg, this.vm[key])
 
       //创建 watcher 对象，当数据改变更新视图
