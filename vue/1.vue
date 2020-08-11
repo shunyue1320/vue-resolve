@@ -40,6 +40,7 @@
   </div>
 </template>
 
+
 <script>
 import QuestionAttachment from './QuestionAttachment'
 import BlockElement from '../basic/BlockElement'
