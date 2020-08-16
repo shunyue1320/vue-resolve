@@ -75,7 +75,7 @@ export default {
       if (this.userInputs[0].answer == optionValue) {
         return this.userInputs[0].status
       } else {
-        return ''
+        return '' 
       }
     }
   }
