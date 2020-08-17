@@ -54,7 +54,7 @@ export default {
     userInputs: { type: Array, default: () => ([]) },
     testing: { type: Boolean, required: false }
   },
-  data() {
+  data() { 
     return {
       userInput: { id: this.question.inputs[0].id }
     }
