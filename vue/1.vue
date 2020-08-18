@@ -16,7 +16,7 @@
       <li v-for="option in question.options" :key="option.id" class="question-option">
         <label v-if="testing" class="mb-0">
           <input type="radio" :name="question.inputs[0].input_name" :value="option.value" class="hidden" @input="onInput($event.target.value)">
-          <span class="question-form-radio mr-1">
+          <span class="question-form-radio mr-1"> 
             {{ option.value }}
           </span>
           <BlockElement
