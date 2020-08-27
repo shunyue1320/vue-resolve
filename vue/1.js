@@ -3,3 +3,6 @@ const {fnn} = require('./3')
 
 fnn()
 bbb() 
+
+fnn()
+bbb() 
