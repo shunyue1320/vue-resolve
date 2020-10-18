@@ -1,14 +1,20 @@
 {
-  "name": "node_app2",
+  "name": "myvue2",
   "version": "1.0.0",
+  "description": "",
   "main": "index.js",
-  "license": "MIT",
   "scripts": {
-    "dev": "parcel index.html --open",
-    "build": "parcel build index.html"
+    "build": "rollup -c -w",
+    "server": "rollup -c -w --sourcemap"
   },
-  "dependencies": {
-    "parcel-bundler": "^1.12.4",
-    "snabbdom": "0.7.4"
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.12.3",
+    "@babel/preset-env": "^7.12.1",
+    "rollup": "^2.32.0",
+    "rollup-plugin-babel": "^4.4.0",
+    "rollup-plugin-serve": "^1.0.4"
   }
 }

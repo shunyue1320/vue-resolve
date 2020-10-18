@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <div id="app">
+    标题一
+    <div>
+      标题二
+      <p >
+        标题三
+        <span style="color: aqua;">姓名： {{name}} 年龄: {{age}}</span>
+      </p>
+    </div>
+  </div>
+
+  <script src="../dist/vue.js"></script>
+  <script>
+    let vm = new Vue({
+      el: '#app',
+      data: {
+        name: '小明',
+        age: 18
+      },
+      created() {
+        console.log("created")
+      }
+    });
+
+    setInterval(() => {
+      vm.age++
+
+      vm.$nextTick(() => {
+        console.log(app.innerHTML)
+      })
+    }, 2000)
+  </script>
+</body>
+</html>
