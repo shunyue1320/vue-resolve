@@ -3,7 +3,7 @@ import { arrayMethods } from './array'
 import Dep from './dep.js';
 
 class Observer {
-  constructor() {
+  constructor(data) {
     //__ob__ 一个响应式标记 作用：将当前this'继承'给需响应的对象或数组
     Object.defineProperty(data, '__ob__', {
       value: this,         //指向this
@@ -28,12 +28,12 @@ class Observer {
 
   walk(data) {
     Object.keys(data).forEach(key => {
-      defineReactive(data, key, data[key])
+      this.defineReactive(data, key, data[key])
     })
   }
 
   defineReactive(data, key, value) {
-    observe(newValue) //递归 所有数据响应式
+    observe(value) //递归 所有数据响应式
     let dep = new Dep //每个属性一个
     Object.defineProperty(data, key, {
       get() {

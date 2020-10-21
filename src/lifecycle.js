@@ -1,5 +1,5 @@
-import Watcher from './observer/watcher';
-import { patch } from './vdom/patch';
+// import Watcher from './observer/watcher';
+// import { patch } from './vdom/patch';
 
 //钩子函数是用数组存储的所以需要for
 export function callHook(vm, hook) {
