@@ -42,6 +42,62 @@
     return Constructor;
   }
 
+  function _slicedToArray(arr, i) {
+    return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
+  }
+
+  function _arrayWithHoles(arr) {
+    if (Array.isArray(arr)) return arr;
+  }
+
+  function _iterableToArrayLimit(arr, i) {
+    if (typeof Symbol === "undefined" || !(Symbol.iterator in Object(arr))) return;
+    var _arr = [];
+    var _n = true;
+    var _d = false;
+    var _e = undefined;
+
+    try {
+      for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {
+        _arr.push(_s.value);
+
+        if (i && _arr.length === i) break;
+      }
+    } catch (err) {
+      _d = true;
+      _e = err;
+    } finally {
+      try {
+        if (!_n && _i["return"] != null) _i["return"]();
+      } finally {
+        if (_d) throw _e;
+      }
+    }
+
+    return _arr;
+  }
+
+  function _unsupportedIterableToArray(o, minLen) {
+    if (!o) return;
+    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    if (n === "Object" && o.constructor) n = o.constructor.name;
+    if (n === "Map" || n === "Set") return Array.from(o);
+    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+  }
+
+  function _arrayLikeToArray(arr, len) {
+    if (len == null || len > arr.length) len = arr.length;
+
+    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+
+    return arr2;
+  }
+
+  function _nonIterableRest() {
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
   // vue的工具方法
   function isObject(obj) {
     return _typeof(obj) === 'object' && obj !== null;
@@ -446,14 +502,100 @@
     return root;
   }
 
+  var defaultTagRE = /\{\{((?:.|\r?\n)+?)\}\}/g; //作用： 'helloworld{{ msg}}aa{{bb}}aaa'  => _v('helloworld'+_s(msg)+"aa" + _s(bb))
+
+  function gen(node) {
+    if (node.type === 1) {
+      //节点里面有children 继续遍历
+      return generate(node);
+    } else {
+      //文本则处理
+      var text = node.text;
+
+      if (!defaultTagRE.test(text)) {
+        //没有有变量 {{}}
+        return "_v(".concat(JSON.stringify(text), ")");
+      } else {
+        //存在变量
+        var tokens = [];
+        var match, index;
+        var lastIndex = defaultTagRE.lastIndex = 0;
+
+        while (match = defaultTagRE.exec(text)) {
+          //匹配出所有变量
+          index = match.index;
+          tokens.push(JSON.stringify(text.slice(lastIndex, index)));
+          tokens.push("_s(".concat(match[1].trim(), ")")); //获取变量名
+
+          lastIndex = index + match[0].length;
+        }
+
+        if (lastIndex < text.length) {
+          tokens.push(JSON.stringify(text.slice(lastIndex)));
+        }
+
+        return "_v(".concat(tokens.join('+'), ")");
+      }
+    }
+  }
+
+  function genChildren(el) {
+    console.log("el", el);
+    var children = el.children;
+
+    if (children) {
+      return children.map(function (c) {
+        return gen(c);
+      }).join(',');
+    } else {
+      return false;
+    }
+  } //作用：[ {name:'id', value: 'divid'}, {name: 'style', value: 'color: aqua;font-size: 30px;'} ] 
+  //  => {id:'divid', style:{color: 'aqua', font-size: '30px'}}
+
+
+  function genProps(attrs) {
+    var str = '';
+
+    for (var i = 0; i < attrs.length; i++) {
+      var attr = attrs[i];
+
+      if (attr.name === 'style') {
+        (function () {
+          var obj = {};
+          attr.value.split(';').forEach(function (item) {
+            var _item$split = item.split(':'),
+                _item$split2 = _slicedToArray(_item$split, 2),
+                key = _item$split2[0],
+                value = _item$split2[1];
+
+            obj[key] = value;
+          });
+          attr.value = obj;
+        })();
+      }
+
+      str += "".concat(attr.name, ":").concat(JSON.stringify(attr.value), ",");
+    }
+  }
+
+  function generate(el) {
+    var children = genChildren(el);
+    var attrs = el.attrs.length ? genProps(el.attrs) : undefined;
+    var code = "c_(\"".concat(el.tag, "\", ").concat(attrs, " ").concat(children ? ",".concat(children) : '', ")");
+    return code;
+  }
+
   function compileToFunctions(template) {
     //1. 将outerHTML 转换成 ast树
     var ast = parseHTML(template); // { tag: 'div', attrs, parent, type, children: [...] }
-    //2. ast树 => 拼接字符串
+
+    console.log("AST:", ast); //2. ast树 => 拼接字符串
 
     var code = generate(ast); //return _c('div',{id:app,style:{color:red}}, ...children)
 
-    code = "with(this{\r\nreturn ".concat(code, " \r\n})"); //3. 字符串 => 可执行方法
+    code = "with(this){ \r\n return ".concat(code, " \r\n })");
+    console.log("code:", code); //3. 字符串 => 可执行方法
 
     var render = new Function(code);
     /**如下：
