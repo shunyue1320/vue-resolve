@@ -1,6 +1,7 @@
-import { initState } from './state';
-import { compileToFunctions } from './compiler/index.js';
-import { mergeOptions } from './utils';
+import { initState } from './state'
+import { compileToFunctions } from './compiler/index.js'
+import {mountComponent, callHook} from './lifecycle.js'
+import { mergeOptions } from './utils'
 import { callHook } from './lifecycle.js'
 
 
@@ -39,7 +40,7 @@ export function initMixin (Vue) {
       opts.render = render
       console.log("render", render);
     }
-    // 走到这用户传入是render函数不需编译
-    callHook(vm, 'beforeMount')
+    // 走到这用户传入是render函数不需编译 --initMixin初始化结束
+    mountComponent(vm); // 组件的挂载流程
   }
 }

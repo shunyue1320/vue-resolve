@@ -30,7 +30,6 @@ function gen(node) {
 }
 
 function genChildren(el) {
-  console.log("el", el);
   const children = el.children
   if (children) {
     return children.map(c => gen(c)).join(',')
