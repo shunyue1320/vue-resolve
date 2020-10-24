@@ -7,13 +7,11 @@
 </head>
 <body>
   <div id="app">
-    标题一
-    <div class="h2" style="color: aqua;font-size: 30px;">
-      标题二
-      <p >
-        标题三
-        <span style="color: aqua;">姓名： {{name}} 年龄: {{age}}</span>
-      </p>
+    <h1 class="h2">标题一</h1>
+    <h2 style="color: red;">标题二</h2>
+    <div>
+      <h3 class="h2">标题三</h3>
+      <span style="color: pink;font-size: 30px;">姓名： {{name}} 年龄: {{age}}</span>
     </div>
   </div>
 
@@ -30,7 +28,7 @@
       }
     });
 
-    setInterval(() => {
+    setTimeout(() => {
       vm.age++
 
       vm.$nextTick(() => {

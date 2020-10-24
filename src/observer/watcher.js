@@ -3,7 +3,7 @@ import { queueWatcher } from "./scheduler";
 
 let id = 0; // 做一个watcher 的id 每次创建watcher时 都有一个序号
 
-class Wathcher {
+class Watcher {
   constructor(vm, expoOrFn, cb, options) {
     this.vm = vm
     this.expoOrFn = expoOrFn
@@ -24,7 +24,14 @@ class Wathcher {
   }
 
   get() {
-    
+    // 1.是先把渲染watcher 放到了 Dep.target上
+    // 2.this.getter()  是不是去页面取值渲染  就是调用defineProperty的取值操作
+    // 3.我就获取当前全局的Dep.target,每个属性都有一个dep 取值是就将Dep.target 保留到当前的dep中
+    // 4.数据变化 通知watcher 更新 
+    pushTarget(this); // 在取值之前 将watcher先保存起来
+    this.getter(); // 这句话就实现了视图的渲染  -> 操作是取值 
+    popTarget(); // 删掉watcher
+    // Vue是组件级别更新的
   }
 
   addDep(dep) {
@@ -38,8 +45,8 @@ class Wathcher {
 
   //视图更新
   update() {
-
+    queueWatcher(this); // 将watcher存储起来
   }
 }
 
-export default Wathcher
+export default Watcher

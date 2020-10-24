@@ -1,4 +1,4 @@
-// import Watcher from './observer/watcher';
+import Watcher from './observer/watcher';
 import { patch } from './vdom/patch';
 
 export function lifeCycleMixin(Vue) {

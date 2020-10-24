@@ -54,11 +54,13 @@ function genProps(attrs) {
     }
     str += `${attr.name}:${JSON.stringify(attr.value)},`
   }
+  return `{${str.slice(0, -1)}}`
 }
 
 export function generate(el) {
   let children = genChildren(el)
   let attrs = el.attrs.length ? genProps(el.attrs) : undefined
-  let code = `c_("${el.tag}", ${attrs} ${children ? `,${children}` : ''})`
+  let code = `_c("${el.tag}", ${attrs} ${children ? `,${children}` : ''})`
+
   return code
 }

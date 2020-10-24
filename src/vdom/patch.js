@@ -3,9 +3,11 @@
 
 export function patch(oldVnode, newVnode) {
   const isRealElement = oldVnode.nodeType
+  // 真实元素
   if (isRealElement) {
     const oldElm = oldVnode
-    const parentElm = oldElm.parentElm
+    const parentElm = oldElm.parentNode //body
+    let el = createElm(newVnode);
     parentElm.insertBefore(el, oldElm.nextSibling)
     parentElm.removeChild(oldElm)
     return el
