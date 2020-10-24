@@ -4,12 +4,12 @@ import { generate } from './generator.js'
 export function compileToFunctions(template) {
   //1. 将outerHTML 转换成 ast树
   let ast = parseHTML(template) // { tag: 'div', attrs, parent, type, children: [...] }
-  console.log("AST:", ast)
+  // console.log("AST:", ast)
 
   //2. ast树 => 拼接字符串
   let code = generate(ast) //return _c('div',{id:app,style:{color:red}}, ...children)
-  code = `with(this){ \r\n return ${code} \r\n })`
-  console.log("code:", code)
+  code = `with(this){ \r\n return ${code} \r\n }`
+  // console.log("code:", code)
   
   //3. 字符串 => 可执行方法
   let render = new Function(code)
