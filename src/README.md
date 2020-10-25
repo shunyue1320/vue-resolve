@@ -1,33 +1,3 @@
-
-[![GitHub stars](https://img.shields.io/github/stars/shunyue1320/vue-resolve)](https://github.com/shunyue1320/vue-resolve/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/shunyue1320/vue-resolve)](https://github.com/shunyue1320/vue-resolve/network)
-[![GitHub license](https://img.shields.io/github/license/shunyue1320/vue-resolve)](https://github.com/shunyue1320/vue-resolve/blob/master/LICENSE)
-
-Use:
-```js
-//克隆代码到本地
-git clone https://github.com/shunyue1320/vue-resolve.git
-
-//安装依赖
-yarn install
-
-//将你的项目打包成vue.js 等同于将你开发的vue打包成一个文件库
-yarn run dev
-
-// 打包时开启 --sourcemap 会额外生成一个vue.js.map的文件 
-// 该文件对应计入了打包后的代码在源码内的位置 方便 在 Chrome DevTools -> surces 内调试
-yarn run server
-
-//浏览
-http://localhost:3000/public/index.html
-```
-### 本项目代码都是结核vue源码简化实现可放心品尝
-##### 打包入口文件：`src/index.js`
-##### 打包出口文件：`dist\vue.js`
-##### 测试文件：`public\index.html`
-
-##### 项目主文件都在src文件夹内
-
 ### 各文件夹的功能简介：
 ```js
 - compiler   /******** 存储编译器核心代码 目的：将节点outerHTML文本转换成render函数 ********/
@@ -55,7 +25,4 @@ http://localhost:3000/public/index.html
 - render.js      //作用：为字符串转成的redner方法提供this指向与函数调用
 - state.js       //作用：将vm.$options.data的数据代理到this上可vue直接通过this访问该数据的原因 并且将数据响应式
 - utils.js       //作用：vue内部的公共方法 类似项目内的公共方法 全局调用使用
-
-- .babelrc.js    //作用：自动将ES2015+的代码转换为es5
-- rollup.config.js//作用：rollup打包的配置文件
 ```
