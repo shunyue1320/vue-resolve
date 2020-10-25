@@ -10,7 +10,7 @@ export function patch(oldVnode, newVnode) {
     let el = createElm(newVnode);
     parentElm.insertBefore(el, oldElm.nextSibling)
     parentElm.removeChild(oldElm)
-    return el
+    return newVnode
   } else {
     // dom diff 算法  同层比较 不需要跨级比较
     // 两棵树 要先比较树根一不一样，再去比儿子长的是否一样
@@ -54,7 +54,8 @@ export function patch(oldVnode, newVnode) {
         el.appendChild(createElm(child))
       }
     }
-    return el
+
+    return newVnode
   }
 }
 

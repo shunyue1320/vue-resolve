@@ -15,7 +15,6 @@ export function renderMixin(Vue) {
     const vm = this
     const { render } = vm.$options
     let vnode = render.call(vm)         //方法存在Vue原型上 this指向Vue _v _c  _s
-    console.log("vnodevnodevnode", vnode);
     return vnode
   }
 }
