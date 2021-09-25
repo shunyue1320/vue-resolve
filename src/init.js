@@ -1,46 +1,37 @@
-import { initState } from './state'
-import { compileToFunctions } from './compiler/index.js'
-import { mountComponent, callHook} from './lifecycle.js'
-import { mergeOptions } from './utils'
-import { nextTick } from './lifecycle.js'
+import { initState } from "./state";
+
+export default function initMixin(Vue) {
+    Vue.prototype._init = function(options) {
+        const vm = this;
+        vm.$options = options // 所有后续的扩展方法都有一个$options选项可以获取用户的所有选项
+        // 对于实例的数据源 props data methods computed watch
+        // props data
+        initState(vm);
+        // vue中会判断如果是$开头的属性不会被变成响应式数据
 
 
-export function initMixin (Vue) {
-  Vue.prototype._init = function(options) {
-    const vm = this
 
-    //合并options
-    vm.$options = mergeOptions(vm.constructor.options || {}, options)
-    
-    callHook(vm, 'beforeCreate')
-    initState(vm) //初始化状态
-    callHook(vm, 'created')
-
-    //在根节点渲染页面
-    if (vm.$options.el) {
-      vm.$mount(vm.$options.el)
+        // 状态初始化完毕后需要进行页面挂载
+        if (vm.$options.el) { // el 属性 和直接调用$mount是一样的
+            vm.$mount(vm.$options.el)
+        }
     }
-  }
+    Vue.prototype.$mount = function(el) {
+        const vm = this;
+        el = document.querySelector(el);
+        const options = vm.$options;
+        if (!options.render) {
+            let template = options.template;
+            if (!template) {
+                template = el.outerHTML
+            }
+            // 将template变成render函数
 
-  Vue.prototype.$mount = function (el) {
-    const vm = this
-    el = vm.$el = document.querySelector(el)
+            // 创建render函数 -》 虚拟dom  -》 渲染真实dom
 
-    //遵循源码 render > template > el 渲染机制
-    const opts = vm.$options;
-
-    if (!opts.render) {
-      let template = opts.template
-      if (!template && el) {
-        template = el.outerHTML
-        console.log(template);
-      }
-
-      const render = compileToFunctions(template)
-      opts.render = render
-      console.log("render", render);
+            // const render =  compileToFunction(template); // 开始编译
+            // options.render = render;
+        }
+        // options.render // 一定存在了
     }
-    // 走到这用户传入是render函数不需编译 --initMixin初始化结束
-    mountComponent(vm); // 组件的挂载流程
-  }
 }

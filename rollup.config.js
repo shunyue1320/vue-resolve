@@ -6,17 +6,18 @@ export default {
   output: {                       //出口
     format: 'umd',
     file: 'dist/vue.js',
-    name: 'Vue'
+    name: 'Vue',
+    sourcemap: true
   },
   plugins: [
     babel({
       exclude: 'ndoe_modules/**'  //排除
     }),
-    serve({                       //开启服务
+    process.env.ENV === 'development' ? serve({                       //开启服务
       open: true,
       openPage: '/public/index.html',
       port: 3000,
       contentBase: ''
-    })
+    }) : null
   ]
 }

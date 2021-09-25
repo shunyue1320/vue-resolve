@@ -26,11 +26,11 @@ git clone https://github.com/shunyue1320/vue-resolve.git
 yarn install
 
 //将你的项目打包成vue.js 等同于将你开发的vue打包成一个文件库
-yarn run dev
+yarn run build
 
 // 打包时开启 --sourcemap 会额外生成一个vue.js.map的文件 
 // 该文件对应计入了打包后的代码在源码内的位置 方便 在 Chrome DevTools -> surces 内调试
-yarn run server
+yarn run serve
 
 //浏览
 http://localhost:3000/public/index.html

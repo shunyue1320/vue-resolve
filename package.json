@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "rollup -c -w",
-    "server": "rollup -c -w --sourcemap"
+    "serve": "cross-env ENV=development rollup -c -w",
+    "build": "rollup -c"
   },
   "keywords": [],
   "author": "",
@@ -13,6 +13,7 @@
   "devDependencies": {
     "@babel/core": "^7.12.3",
     "@babel/preset-env": "^7.12.1",
+    "cross-env": "^7.0.3",
     "rollup": "^2.32.0",
     "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-serve": "^1.0.4"

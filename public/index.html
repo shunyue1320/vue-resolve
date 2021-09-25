@@ -1,40 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
 </head>
+
 <body>
-  <div id="app">
-    <h1 class="h1">标题一 姓名: {{name}} </h1>
-    <h2 style="color: red;">标题二 年龄: {{age}}</h2>
-    <div>
-      <h3 class="h2">标题三</h3>
-      <span style="color: pink;font-size: 30px;">姓名: {{name}} ，年龄: {{age}}</span>
-    </div>
-  </div>
+    <script src="../dist/vue.js"></script>
+    <div id="app">{{name}}</div>
+    <script>
+        // Vue 是MVVM框架 （基于mvc升级的 弱化controller这一层） vue没有完全遵循mvvm， 因为传统的mvvm框架 不能手动的操作数据  （ref 可以操作组件数据）
+        // vue的核心 响应式数据原理 
+        // React 是一个V框架 只是将数据转化成视图 并没有绑定的操作，更新数据也是你手动调用setState (实现组件化)
 
-  <script src="../dist/vue.js"></script>
-  <script>
-    let vm = new Vue({
-      el: '#app',
-      data: {
-        name: '小明',
-        age: 18
-      },
-      created() {
-        console.log("created")
-      }
-    });
+        // 响应式数据原理 Vue2中采用的是defineProperty (我们的响应式原理的目的就是监控数据的变化，数变化了更新视图，只要用户给数据赋值了，触发视图更新)
+        const vm = new Vue({
+            el: '#app',
+            data() {
+                return  {
+                    name: '小米',
+                    age: 18,
+                    address: '北京',
+                    arr:[{a:2}] // 检测深度响应式
+                }
+            },
+            // temolate
+            // render
+        });
+        console.log("vm", vm); // 代理
+        
+         // 可以通过实例的$options 来获取创造实例上传递的参数
 
-    setInterval(() => {
-      vm.age++
 
-      vm.$nextTick(() => {
-        console.log(app.innerHTML)
-      })
-    }, 2000)
-  </script>
+    
+    </script>
+
 </body>
+
 </html>
