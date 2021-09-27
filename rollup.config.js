@@ -13,7 +13,7 @@ export default {
     babel({
       exclude: 'ndoe_modules/**'  //排除
     }),
-    process.env.ENV === 'development' ? serve({                       //开启服务
+    process.env.ENV === 'development' ? serve({  //开启服务
       open: true,
       openPage: '/public/index.html',
       port: 3000,

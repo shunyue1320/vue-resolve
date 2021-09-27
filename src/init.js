@@ -1,4 +1,6 @@
 import { initState } from "./state";
+import { compileToFunction } from "./compiler/index";
+import { mountComponent } from "./lifecycle";
 
 export default function initMixin(Vue) {
     Vue.prototype._init = function(options) {
@@ -22,16 +24,17 @@ export default function initMixin(Vue) {
         const options = vm.$options;
         if (!options.render) {
             let template = options.template;
-            if (!template) {
+            if (!template) { // render 和 template 都没有的情况下才获取 outerHTML
                 template = el.outerHTML
             }
             // 将template变成render函数
 
             // 创建render函数 -》 虚拟dom  -》 渲染真实dom
-
-            // const render =  compileToFunction(template); // 开始编译
-            // options.render = render;
+            console.log("html 初始值", template)
+            const render =  compileToFunction(template); // 开始编译
+            options.render = render;
         }
-        // options.render // 一定存在了
+        mountComponent(vm,el)
+        console.log("render =", options.render.toString())
     }
 }
