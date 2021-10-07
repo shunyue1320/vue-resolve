@@ -15,8 +15,6 @@ let methods = [
 // 如 arr[1000] = 1234 更改数组会响应式是通过 $set 实现的
 methods.forEach(method => { // 用户调用push方法会先经历我自己重写的方法,之后调用数组原来的方法
     arrayPrototype[method] = function(...args) {
-        console.log('数组修改了')
-
         let inserted;
         let ob = this.__ob__;
         switch (method) {
@@ -33,7 +31,9 @@ methods.forEach(method => { // 用户调用push方法会先经历我自己重写
             // 对新增的数据再次进行观测
             ob.observeArray(inserted)
         }
-        return oldArrayPrototype[method].call(this, ...args)
+        let result = oldArrayPrototype[method].call(this, ...args)
+        ob.dep.notify()
+        return result
     }
 })
 export default arrayPrototype

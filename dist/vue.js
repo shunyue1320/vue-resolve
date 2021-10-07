@@ -112,7 +112,6 @@
     arrayPrototype[method] = function () {
       var _oldArrayPrototype$me;
 
-      console.log('数组修改了');
       var inserted;
       var ob = this.__ob__;
 
@@ -137,9 +136,47 @@
         ob.observeArray(inserted);
       }
 
-      return (_oldArrayPrototype$me = oldArrayPrototype[method]).call.apply(_oldArrayPrototype$me, [this].concat(args));
+      var result = (_oldArrayPrototype$me = oldArrayPrototype[method]).call.apply(_oldArrayPrototype$me, [this].concat(args));
+
+      ob.dep.notify();
+      return result;
     };
   });
+
+  var did = 0; // 收集 watcher
+
+  var Dep = /*#__PURE__*/function () {
+    function Dep() {
+      _classCallCheck(this, Dep);
+
+      this.id = did++;
+      this.watchers = [];
+    }
+
+    _createClass(Dep, [{
+      key: "depend",
+      value: function depend() {
+        // watcher 和 dep 是一个多对多的关系
+        Dep.target.addDep(this); // 让 watcher 去记录 dep
+      }
+    }, {
+      key: "addWatcher",
+      value: function addWatcher(watcher) {
+        this.watchers.push(watcher);
+      }
+    }, {
+      key: "notify",
+      value: function notify() {
+        this.watchers.forEach(function (watcher) {
+          return watcher.update();
+        });
+      }
+    }]);
+
+    return Dep;
+  }();
+
+  Dep.target = null; // 描述当前watcher是谁的
 
   var Observer = /*#__PURE__*/function () {
     function Observer(data) {
@@ -148,8 +185,10 @@
       // 如果是数组的话也是用defineProperty会浪费很多性能 很少用户会通过arr[878] = 123
       // vue3中的polyfill 直接就给数组做代理了
       // 改写数组的方法，如果用户调用了可以改写数组方法的api 那么我就去劫持这个方法
-      // 变异方法 push pop shift unshift reverse sort splice 
-      Object.defineProperty(data, '__ob__', {
+      // 变异方法 push pop shift unshift reverse sort splice
+      this.dep = new Dep(); // 给所有的对象都增加一个dep, 后续我们会给对象增添新的属性也期望能实现更新
+
+      Object.defineProperty(data, "__ob__", {
         value: this,
         enumerable: false
       }); // 如果有__ob__属性 说明被观测过了
@@ -171,7 +210,7 @@
       value: function observeArray(data) {
         data.forEach(function (item) {
           return observe(item);
-        }); //如果是对象我才进行观测了  
+        }); //如果是对象我才进行观测了
       }
     }, {
       key: "walk",
@@ -187,31 +226,56 @@
     }]);
 
     return Observer;
-  }(); // 性能不好的原因在于 所有的属性都被重新定义了一遍
+  }();
+
+  function dependArray(value) {
+    for (var i = 0; i < value.length; i++) {
+      var temp = value[i];
+      temp.__ob__ && temp.__ob__.dep.depend(); // 让数组中的对象类型做依赖收集  [[[]]]
+
+      if (Array.isArray(temp)) {
+        dependArray(temp);
+      }
+    }
+  } // 性能不好的原因在于 所有的属性都被重新定义了一遍
   // 一上来需要将对象深度代理 性能差
 
 
   function defineReactive(data, key, value) {
     //  闭包
     // 属性会全部被重写增加了get和set
-    observe(value); // 递归代理属性
+    var dep = new Dep();
+    var childOb = observe(value); // 递归代理属性
 
     Object.defineProperty(data, key, {
       get: function get() {
         // vm.xxx
+        if (Dep.target) {
+          dep.depend(); // 依赖收集 要将属性收集对应的 watcher
+
+          if (childOb) {
+            childOb.dep.depend(); // 让数组和对象也记录一下渲染 watcher
+
+            if (Array.isArray(value)) {
+              dependArray(value);
+            }
+          }
+        }
+
         return value;
       },
       set: function set(newValue) {
         // vm.xxx = {a:1} 赋值一个对象的话 也可以实现响应式数据
         if (newValue === value) return;
-        observe(newValue);
+        childOb = observe(newValue);
         value = newValue;
+        dep.notify(); // 通知依赖的watcher去重新渲染
       }
     });
   }
 
   function observe(data) {
-    if (_typeof(data) !== 'object' || data == null) {
+    if (_typeof(data) !== "object" || data == null) {
       return; // 如果不是对象类型，那么不要做任何处理
     }
 
@@ -223,7 +287,7 @@
 
 
     return new Observer(data);
-  }
+  } // 每个类头有一个prototype 指向了一个公共的空间
   // 每个实例可以通过__proto__ 找到所属类的prototype对应的内容
   // 1.在Vue2中对象的响应式原理，就是给每个属性增加get和set，而且是递归操作 （用户在写代码的时候尽量不要把所有的属性都放在data中，层次尽可能不要太深）, 赋值一个新对象也会被变成响应式的
   // 2.数组没有使用defineProperty 采用的是函数劫持创造一个新的原型重写了这个原型的7个方法，用户在调用的时候采用的是这7个方法。我们增加了逻辑如果是新增的数据会再次被劫持 。 最终调用数组的原有方法 （注意数字的索引和长度没有被监控）  数组中对象类型会被进行响应式处理
@@ -554,6 +618,141 @@
     return vnode.el;
   }
 
+  var callbacks = [];
+  var waiting = false;
+
+  function flushCallbacks() {
+    callbacks.forEach(function (cb) {
+      return cb();
+    });
+    callbacks = [];
+    waiting = false;
+  } // 异步任务分为 两种 宏任务、微任务
+  // 宏任务 setTimeout setImmediate(ie下支持性能优于setTimeout)
+  // 微任务 promise.then mutationObserver
+  // vue在更新的时候希望尽快的更新页面 promise.then  mutationObserver  setImmediate setTimeout
+  // vue3不在考虑兼容性问题了 所以后续vue3中直接使用promise.then
+
+
+  var timeFunc;
+
+  if (typeof Promise !== 'undefined') {
+    var p = Promise.resolve();
+
+    timeFunc = function timeFunc() {
+      p.then(flushCallbacks);
+    };
+  } else if (typeof MutationObserver !== 'undefined') {
+    var observer = new MutationObserver(flushCallbacks); // mutationObserver放的回调是异步执行的
+
+    var textNode = document.createTextNode(1); // 文本节点内容先是 1
+
+    observer.observe(textNode, {
+      characterData: true
+    });
+
+    timeFunc = function timeFunc() {
+      textNode.textContent = 2; // 改成了2  就会触发更新了
+    };
+  } else if (typeof setImmediate !== 'undefined') {
+    timeFunc = function timeFunc() {
+      setImmediate(flushCallbacks);
+    };
+  } else {
+    timeFunc = function timeFunc() {
+      setTimeout(flushCallbacks, 0);
+    };
+  }
+
+  function nextTick(cb) {
+    callbacks.push(cb);
+
+    if (!waiting) {
+      waiting = true;
+      timeFunc();
+    }
+  }
+
+  var queue = [];
+  var has = {};
+  var pending = false;
+
+  function flushSchedularQueue() {
+    queue.forEach(function (Watcher) {
+      return Watcher.run();
+    });
+    queue = [];
+    has = {};
+    pending = false;
+  }
+
+  function queueWatcher(watcher) {
+    var id = watcher.id;
+
+    if (has[id] == null) {
+      queue.push(watcher);
+      has[id] = true;
+
+      if (!pending) {
+        nextTick(function () {
+          // 万一一个属性 对应多个更新，那么可能会开启多个定时器
+          flushSchedularQueue(); // 批处理操作 ， 防抖
+        });
+        pending = true;
+      }
+    }
+  }
+
+  var wid = 0;
+
+  var Watcher = /*#__PURE__*/function () {
+    function Watcher(vm, fn, cb, options) {
+      _classCallCheck(this, Watcher);
+
+      this.vm = vm;
+      this.fn = fn;
+      this.cb = cb;
+      this.options = options;
+      this.deps = [];
+      this.depsId = new Set();
+      this.id = wid++;
+      this.get(); // 实现页面的渲染
+    }
+
+    _createClass(Watcher, [{
+      key: "get",
+      value: function get() {
+        Dep.target = this;
+        this.fn(); // 去实例中取值  触发getter
+
+        Dep.target = null; // 只有在渲染的时候才有Dep.target属性
+      }
+    }, {
+      key: "addDep",
+      value: function addDep(dep) {
+        var id = dep.id;
+
+        if (!this.depsId.has(id)) {
+          this.deps.push(dep);
+          this.depsId.add(id);
+          dep.addWatcher(this);
+        }
+      }
+    }, {
+      key: "update",
+      value: function update() {
+        queueWatcher(this);
+      }
+    }, {
+      key: "run",
+      value: function run() {
+        this.get(); // 重新执行 updateComponent
+      }
+    }]);
+
+    return Watcher;
+  }(); // watcher 与 dep 多对多关系，一个属性对应多个 watcher, 一个 watcher 对应多个 dep
+
   function lifeCycleMixin(Vue) {
     Vue.prototype._c = function () {
       // 生成 vnode
@@ -576,7 +775,7 @@
     Vue.prototype._render = function () {
       var vm = this;
       var render = vm.$options.render;
-      var vnode = render.call(vm); // _c( _s _v)  with(this)
+      var vnode = render.call(vm); // _c( _s _v)  with(this) 【此处获取属性时被 Watcher 监听】
 
       console.log("vnode =", vnode);
       return vnode;
@@ -596,9 +795,12 @@
     var updateComponent = function updateComponent() {
       // 需要调用生成的render函数 获取到虚拟节点  -> 生成真实的dom
       vm._update(vm._render());
-    };
+    }; // 添加监听
 
-    updateComponent(); // 如果稍后数据变化 也调用这个函数重新执行 
+
+    new Watcher(vm, updateComponent, function () {
+      console.log('页面重新渲染 updated');
+    }, true); // updateComponent(); // 如果稍后数据变化 也调用这个函数重新执行 
     //后续：观察者模式 + 依赖收集 + diff算法
   }
 
@@ -653,6 +855,8 @@
   initMixin(Vue); // 后续在扩展都可以采用这种方式
 
   lifeCycleMixin(Vue); // 给 Vue 实例添加方法
+
+  Vue.prototype.$nextTick = nextTick; // 给Vue添加原型方法我们通过文件的方式来添加，防止所有的功能都在一个文件中来处理
 
   return Vue;
 

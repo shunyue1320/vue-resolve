@@ -1,5 +1,6 @@
 import { createElement, createTextNode } from "./vdom/index"
 import { patch } from "./vdom/patch"
+import Watcher from "./observe/watcher"
 
 // 创造对应的虚拟节点 进行渲染
 export function lifeCycleMixin(Vue) {
@@ -18,7 +19,7 @@ export function lifeCycleMixin(Vue) {
   Vue.prototype._render = function() {
     const vm = this;
     const render = vm.$options.render;
-    let vnode = render.call(vm); // _c( _s _v)  with(this)
+    let vnode = render.call(vm); // _c( _s _v)  with(this) 【此处获取属性时被 Watcher 监听】
     console.log("vnode =", vnode)
     return vnode;
   }
@@ -37,6 +38,11 @@ export function mountComponent(vm, el) {
     // 需要调用生成的render函数 获取到虚拟节点  -> 生成真实的dom
     vm._update(vm._render());
   }
-  updateComponent(); // 如果稍后数据变化 也调用这个函数重新执行 
+
+  // 添加监听
+  new Watcher(vm, updateComponent, ()=>{
+    console.log('页面重新渲染 updated')
+  }, true)
+  // updateComponent(); // 如果稍后数据变化 也调用这个函数重新执行 
   //后续：观察者模式 + 依赖收集 + diff算法
 }

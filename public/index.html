@@ -31,6 +31,18 @@
             // render
         });
         console.log("vm", vm); // 代理
+
+        setTimeout(() => {
+            // vm._update(vm._render()); // 直接默认强制更新，有可能数据没有变化但是我强制的让页面发生一次渲染
+            vm.name = '1'; // 更新id为0的watcher
+            vm.name = '2'; // 更新id为0的watcher
+            vm.name = '3';  //更新id为0的watcher  => 更新id为0的watcher
+
+            // 我们不想在多开一个异步任务 我期望的是 公用一个异步任务
+            vm.$nextTick(()=>{
+                console.log(document.querySelector('div').innerHTML)
+            })
+        }, 1000);
         
          // 可以通过实例的$options 来获取创造实例上传递的参数
 
