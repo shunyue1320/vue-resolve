@@ -3,7 +3,7 @@ export function createElement(vm, tag, data = {}, ...children) {
 }
 
 export function createTextNode(vm,text) {
-    return vnode(vm,null,null,null,null,text)
+    return vnode(vm,undefined,undefined,undefined,undefined,text)
 }
 
 function vnode(vm,tag,data,children,key,text){

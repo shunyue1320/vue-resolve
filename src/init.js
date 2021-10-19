@@ -1,17 +1,18 @@
 import { initState } from "./state";
 import { compileToFunction } from "./compiler/index";
-import { mountComponent } from "./lifecycle";
+import { callHook, mountComponent } from "./lifecycle";
+import { mergeOptions } from "./globalAPI/index";
 
 export default function initMixin(Vue) {
     Vue.prototype._init = function(options) {
         const vm = this;
-        vm.$options = options // 所有后续的扩展方法都有一个$options选项可以获取用户的所有选项
+        vm.$options = mergeOptions(vm.constructor.options, options) // 所有后续的扩展方法都有一个$options选项可以获取用户的所有选项
         // 对于实例的数据源 props data methods computed watch
         // props data
+        callHook(vm,'beforeCreate')
         initState(vm);
         // vue中会判断如果是$开头的属性不会被变成响应式数据
-
-
+        callHook(vm,'created')
 
         // 状态初始化完毕后需要进行页面挂载
         if (vm.$options.el) { // el 属性 和直接调用$mount是一样的

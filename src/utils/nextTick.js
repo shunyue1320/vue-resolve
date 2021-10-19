@@ -1,9 +1,11 @@
 let callbacks = []
 let waiting = false
-function flushCallbacks() {
-  callbacks.forEach(cb => cb())
-  callbacks = []
-  waiting = false
+function flushCallbacks(){
+  waiting = false; 
+  // 默认第一次会将两次的nextTick 都维护到callbacks中 [用户的，页面渲染的]
+  let cbs = callbacks.slice(0);
+  callbacks = [];
+  cbs.forEach(cb=>cb());
 }
 
 // 异步任务分为 两种 宏任务、微任务

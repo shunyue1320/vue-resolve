@@ -26,14 +26,27 @@ export function lifeCycleMixin(Vue) {
   Vue.prototype._update = function(vnode) { // 将虚拟节点变成真实节点
     // 将 vnode 渲染el元素中
     const vm = this;
-    vm.$el = patch(vm.$el,vnode); // 可以初始化渲染， 后续更新也走这个patch方法
+    const prevVnode = vm._vnode
+    if (!prevVnode) {
+      vm.$el = patch(vm.$el, vnode) // 可以初始化渲染， 后续更新也走这个patch方法
+    } else {
+      vm.$el = patch(prevVnode, vnode) // 第二次 patch 都传 vnode
+    }
+
+    vm._vnode = vnode // 存储旧 vnode
   }
+}
+
+export function callHook(vm, hook){
+  const handlers = vm.$options[hook]
+  handlers && handlers.forEach(hook => hook.call(vm))
 }
 
 
 export function mountComponent(vm, el) {
   // 实现页面的挂载流程
   vm.$el = el;// 先将 el 挂载到实例上
+  callHook(vm,'beforeMount')
   const updateComponent = () => {
     // 需要调用生成的render函数 获取到虚拟节点  -> 生成真实的dom
     vm._update(vm._render());
