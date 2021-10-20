@@ -18,4 +18,14 @@ class Dep {
 }
 
 Dep.target = null // 描述当前watcher是谁的
+const stack = []  // 存放 updateCompent 与 用户 watch 的 watcher
+export function pushTarget(watcher) {
+  stack.push(watcher)
+  Dep.target = watcher
+}
+export function popTarget(){
+  stack.pop() // 删除最后一个 watcher
+  Dep.target = stack[stack.length - 1]
+}
+
 export default Dep

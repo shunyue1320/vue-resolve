@@ -1,21 +1,43 @@
-import Dep from './dep'
+import Dep { pushTarget } from './dep'
 import { queueWatcher } from './schedular'
 let wid = 0
 class Watcher {
-  constructor(vm, fn, cb, options) {
+  constructor(vm, exprOrFn, cb, options) {
     this.vm = vm
-    this.fn = fn
+    this.exprOrFn = exprOrFn
     this.cb = cb
     this.options = options
     this.deps = []
     this.depsId = new Set()
     this.id = wid++
-    this.get() // 实现页面的渲染
+    this.lazy = !!options.lazy   // lazy属性是用来标识默认是否调用函数 (computed)
+    this.dirty = this.lazy       // dirty属性是用来做缓存的
+
+    this.user = !!options.user   // 如果是用户watcher会多一个属性 user:true
+    
+    // 如果给的是一个字符串， 需要去通过字符串取值
+    if (typeof exprOrFn == 'function') {
+      this.getter = exprOrFn // updateComponent
+    } else {
+      this.getter = function () { // user watch 获取监听变量的值
+        let path = exprOrFn.split('.')
+        return path.reduce((vm, current) => {
+          vm = vm[current]
+          return vm
+        }, vm)
+      }
+    }
+
+    this.value = this.lazy ? undefined : this.get() // 实现页面的渲染
   }
 
   get() {
+    pushTarget(this) // 收集各种 watcher （updateComponent, watch, compone）
+    const value =  this.getter.call(this.vm); // 去实例中取值  触发getter
+    popTarget()
+
     Dep.target = this
-    this.fn() // 去实例中取值  触发getter
+    this.exprOrFn() // 去实例中取值  触发getter
     Dep.target = null // 只有在渲染的时候才有Dep.target属性
   }
   addDep(dep) {
