@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <!-- 依赖的值变化了，但是页面中使用的是计算属性，通过计算属性watcher找到那两个依赖的值，让他们记住这个渲染watcher -->
+
+    <!-- 先渲染在取值 -->
+    <div id="app">{{fullName}}</div>
+    <!-- <script src="https://cdn.bootcdn.net/ajax/libs/vue/2.6.14/vue.js"></script> -->
+    <script src="../dist/vue.js"> </script>
+    <script>
+        const vm = new Vue({
+            el: '#app',
+            data: {
+                firname: '小',
+                lastname: '米'
+            },
+            computed: {
+                // 计算属性就是defineProperty 但是内部封装了一个watcher
+                fullName() { // 这个是defineProperty中的get方法
+                    console.log('1')
+                    return this.firname + this.lastname
+                }
+            }
+        });
+        // 计算属性是具备缓存的如果依赖的属性没有发生变化，不会导致重新执行对应的函数
+        // 计算属性也是一个watcher， 内部函数在调用的时候，会做取值操作，此时可以让应用的属性记住计算属性watcher
+
+        // 计算属性watcher在页面上使用的时候, 如果改变了依赖的属性，那么页面需要重新渲染吗？ 需要更新的，但是计算属性不会收集渲染watcher，watcher中记录了他依赖了哪些属性,通过计算属性watcher，找到里面的依赖的属性，让依赖的属性记录渲染watcher就可以了
+        console.log(vm.fullName)
+        setTimeout(() => {
+            vm.lastname = '果'; // 我需要将dirty 变为true 即可
+        }, 1000);
+
+
+
+        // 默认计算属性有一个watcher，取值的时候会执行这个watcher，并且让依赖的属性收集这个watcher
+    </script>
+</body>
+
+</html>

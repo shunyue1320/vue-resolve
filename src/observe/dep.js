@@ -12,6 +12,14 @@ class Dep {
   addWatcher (watcher) {
     this.watchers.push(watcher)
   }
+  removeWatcher(watcher) {
+    if (this.watchers.length) {
+      const index = this.watchers.indexOf(watcher)
+      if (index > -1) {
+        return this.watchers.splice(index, 1)
+      }
+    }
+  }
   notify () {
     this.watchers.forEach(watcher => watcher.update())
   }
@@ -24,7 +32,7 @@ export function pushTarget(watcher) {
   Dep.target = watcher
 }
 export function popTarget(){
-  stack.pop() // 删除最后一个 watcher
+  stack.pop() // 删除最后一个项
   Dep.target = stack[stack.length - 1]
 }
 

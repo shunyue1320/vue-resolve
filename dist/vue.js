@@ -165,6 +165,17 @@
         this.watchers.push(watcher);
       }
     }, {
+      key: "removeWatcher",
+      value: function removeWatcher(watcher) {
+        if (this.watchers.length) {
+          var index = this.watchers.indexOf(watcher);
+
+          if (index > -1) {
+            return this.watchers.splice(index, 1);
+          }
+        }
+      }
+    }, {
       key: "notify",
       value: function notify() {
         this.watchers.forEach(function (watcher) {
@@ -177,6 +188,18 @@
   }();
 
   Dep.target = null; // 描述当前watcher是谁的
+
+  var stack = []; // 存放 updateCompent 与 用户 watch 的 watcher
+
+  function pushTarget(watcher) {
+    stack.push(watcher);
+    Dep.target = watcher;
+  }
+  function popTarget() {
+    stack.pop(); // 删除最后一个项
+
+    Dep.target = stack[stack.length - 1];
+  }
 
   var Observer = /*#__PURE__*/function () {
     function Observer(data) {
@@ -292,11 +315,235 @@
   // 1.在Vue2中对象的响应式原理，就是给每个属性增加get和set，而且是递归操作 （用户在写代码的时候尽量不要把所有的属性都放在data中，层次尽可能不要太深）, 赋值一个新对象也会被变成响应式的
   // 2.数组没有使用defineProperty 采用的是函数劫持创造一个新的原型重写了这个原型的7个方法，用户在调用的时候采用的是这7个方法。我们增加了逻辑如果是新增的数据会再次被劫持 。 最终调用数组的原有方法 （注意数字的索引和长度没有被监控）  数组中对象类型会被进行响应式处理
 
+  var callbacks = [];
+  var waiting = false;
+
+  function flushCallbacks() {
+    waiting = false; // 默认第一次会将两次的nextTick 都维护到callbacks中 [用户的，页面渲染的]
+
+    var cbs = callbacks.slice(0);
+    callbacks = [];
+    cbs.forEach(function (cb) {
+      return cb();
+    });
+  } // 异步任务分为 两种 宏任务、微任务
+  // 宏任务 setTimeout setImmediate(ie下支持性能优于setTimeout)
+  // 微任务 promise.then mutationObserver
+  // vue在更新的时候希望尽快的更新页面 promise.then  mutationObserver  setImmediate setTimeout
+  // vue3不在考虑兼容性问题了 所以后续vue3中直接使用promise.then
+
+
+  var timeFunc;
+
+  if (typeof Promise !== 'undefined') {
+    var p = Promise.resolve();
+
+    timeFunc = function timeFunc() {
+      p.then(flushCallbacks);
+    };
+  } else if (typeof MutationObserver !== 'undefined') {
+    var observer = new MutationObserver(flushCallbacks); // mutationObserver放的回调是异步执行的
+
+    var textNode = document.createTextNode(1); // 文本节点内容先是 1
+
+    observer.observe(textNode, {
+      characterData: true
+    });
+
+    timeFunc = function timeFunc() {
+      textNode.textContent = 2; // 改成了2  就会触发更新了
+    };
+  } else if (typeof setImmediate !== 'undefined') {
+    timeFunc = function timeFunc() {
+      setImmediate(flushCallbacks);
+    };
+  } else {
+    timeFunc = function timeFunc() {
+      setTimeout(flushCallbacks, 0);
+    };
+  }
+
+  function nextTick(cb) {
+    callbacks.push(cb);
+
+    if (!waiting) {
+      waiting = true;
+      timeFunc();
+    }
+  }
+
+  var queue = [];
+  var has = {};
+  var pending = false;
+
+  function flushSchedularQueue() {
+    queue.forEach(function (Watcher) {
+      return Watcher.run();
+    });
+    queue = [];
+    has = {};
+    pending = false;
+  }
+
+  function queueWatcher(watcher) {
+    var id = watcher.id;
+
+    if (has[id] == null) {
+      queue.push(watcher);
+      has[id] = true;
+
+      if (!pending) {
+        nextTick(function () {
+          // 万一一个属性 对应多个更新，那么可能会开启多个定时器
+          flushSchedularQueue(); // 批处理操作 ， 防抖
+        });
+        pending = true;
+      }
+    }
+  }
+
+  var wid = 0;
+
+  var Watcher = /*#__PURE__*/function () {
+    function Watcher(vm, exprOrFn, cb, options) {
+      _classCallCheck(this, Watcher);
+
+      this.vm = vm;
+      this.exprOrFn = exprOrFn;
+      this.cb = cb;
+      this.options = options;
+      this.deps = [];
+      this.depsId = new Set();
+      this.id = wid++;
+      this.lazy = !!options.lazy; // lazy属性是用来标识默认是否调用函数 (computed)
+
+      this.dirty = this.lazy; // dirty属性是用来做缓存的
+
+      this.user = !!options.user; // 如果是用户watcher会多一个属性 user:true
+      // 如果给的是一个字符串， 需要去通过字符串取值
+
+      if (typeof exprOrFn == 'function') {
+        this.getter = exprOrFn; // updateComponent
+      } else {
+        this.getter = function () {
+          // user watch 获取监听变量的值
+          var path = exprOrFn.split('.');
+          return path.reduce(function (vm, current) {
+            vm = vm[current]; // 触发getter  执行 dep.depend()  给  dep.watchers 添加一个 watcher 
+
+            return vm;
+          }, vm);
+        };
+      }
+
+      this.value = this.lazy ? undefined : this.get(); // 实现页面的渲染
+    }
+
+    _createClass(Watcher, [{
+      key: "get",
+      value: function get() {
+        // 为什么要加 pushTarget 与 popTarget 其实就是因为 computed 执行 get 方法时里面来触发了其他响应式变量的get
+        // 
+        pushTarget(this); // 收集各种 watcher （updateComponent, watch, computed）
+
+        var value = this.getter.call(this.vm); // 去实例中取值  触发getter
+
+        popTarget();
+        return value;
+      }
+    }, {
+      key: "addDep",
+      value: function addDep(dep) {
+        var id = dep.id;
+
+        if (!this.depsId.has(id)) {
+          this.deps.push(dep);
+          this.depsId.add(id);
+          dep.addWatcher(this);
+        }
+      }
+    }, {
+      key: "update",
+      value: function update() {
+        if (this.lazy) {
+          // 是计算属性watcher不需要走渲染
+          this.dirty = true;
+        } else {
+          // 渲染用户 watcher
+          queueWatcher(this);
+        }
+      }
+    }, {
+      key: "run",
+      value: function run() {
+        // 稍后会触发run方法, 找到对应的回调让回调执行传入新值和老值
+        var newValue = this.get(); // 获取最新的状态
+
+        var oldValue = this.value; // 上次保留的老值
+
+        this.value = newValue; // 用新值作为老的值
+
+        if (this.user) {
+          // 用户 watch 回调， 参数：(新值， 老值)
+          this.cb.call(this.vm, newValue, oldValue);
+        }
+      }
+    }, {
+      key: "evaluate",
+      value: function evaluate() {
+        this.value = this.get();
+        this.dirty = false;
+      }
+    }, {
+      key: "depend",
+      value: function depend() {
+        var i = this.deps.length;
+
+        while (i--) {
+          this.deps[i].depend();
+        }
+      }
+    }, {
+      key: "teardown",
+      value: function teardown() {
+        // 1. 删除这个 watchers
+        var _watchers = this.vm._watchers;
+
+        if (_watchers.length) {
+          var index = _watchers.indexOf(this);
+
+          if (index > -1) {
+            return _watchers.splice(index, 1);
+          }
+        } // 2. 删除所有 dep 内的这个 watchers
+
+
+        var i = this.deps.length;
+
+        while (i--) {
+          this.deps[i].removeWatcher(this);
+        }
+      }
+    }]);
+
+    return Watcher;
+  }(); // watcher 与 dep 多对多关系，一个属性对应多个 watcher, 一个 watcher 对应多个 dep
+
   function initState(vm) {
-    var options = vm.$options; // 后续实现计算属性 、 watcher 、 props 、methods
+    var options = vm.$options; // 数据响应式
 
     if (options.data) {
       initData(vm);
+    } // computed 响应式
+
+
+    if (options.computed) {
+      initComputed(vm);
+    } // watcher 监听
+
+
+    if (options.watch) {
+      initWatch(vm);
     }
   }
 
@@ -310,19 +557,116 @@
       }
     });
   }
+  /********* data 数据响应式 start *********/
+
 
   function initData(vm) {
     var data = vm.$options.data; // 如果是函数就拿到函数的返回值 否则就直接采用data作为数据源
 
-    data = vm._data = typeof data === 'function' ? data.call(vm) : data; // 属性劫持 采用defineProperty将所有的属性进行劫持
+    data = vm._data = typeof data === "function" ? data.call(vm) : data; // 属性劫持 采用defineProperty将所有的属性进行劫持
     // 我期望用户可以直接通过 vm.xxx 获取值， 也可以这样取值 vm._data.xxx
 
     for (var key in data) {
-      proxy(vm, '_data', key);
+      proxy(vm, "_data", key);
     }
 
     observe(data);
   }
+  /********* data 数据响应式 end *********/
+
+  /********* computed 计算属性 start *********/
+
+
+  function initComputed(vm) {
+    var computed = vm.$options.computed;
+    var watchers = vm._computedWatchers = {}; // 存储所有的 component的 watcher
+
+    for (var key in computed) {
+      var userDef = computed[key];
+      var getter = typeof userDef === 'function' ? userDef : userDef.get;
+      watchers[key] = new Watcher(vm, getter, function () {}, {
+        lazy: true
+      });
+      defineComputed(vm, key);
+    }
+  }
+
+  function defineComputed(vm, key) {
+    Object.defineProperty(vm, key, {
+      get: createComputedGetter(key) // 改了重新计算， 没改取缓存
+
+    });
+  }
+
+  function createComputedGetter(key) {
+    return function () {
+      var watcher = this._computedWatchers[key];
+
+      if (watcher.dirty) {
+        // 如果dirty:true就重新计算，否则就不算了 把以前的值返回
+        watcher.evaluate(); // 会调用用户定义的方法将返回值返回,此时dirty为false，并且用户的返回值存放到了watcher.value上
+      } // 在求值的过程中 stack = [渲染watcher，计算属性watcher] Dep.target = 计算属性watcher
+      // 当evaluate执行完毕后 stack = [渲染watcher]  Dep.target  = 渲染watcher
+      // 计算属性是一个watcher  渲染是一个watcher
+
+
+      if (Dep.target) {
+        // 让计算属性watcher对应的两个dep 记录渲染watcher即可
+        watcher.depend();
+      }
+
+      return watcher.value;
+    };
+  }
+  /********* computed 计算属性 end *********/
+
+  /********* watch 监听 start *********/
+
+
+  function initWatch(vm) {
+    var watch = vm.$options.watch;
+
+    for (var key in watch) {
+      var handler = watch[key]; // 对当前属性进行创建watcher，watcher中存放的回调是handler，取数据是从vm上获取
+
+      createWatcher(vm, key, handler);
+    }
+  }
+
+  function createWatcher(vm, key, handler) {
+    // handler 可以是对象
+    var options;
+
+    if (_typeof(handler) === 'object' && handler !== null) {
+      options = handler;
+      handler = handler.handler;
+    } // 你可以判断如果handler 是一个字符串 可以采用实例上的方法
+
+
+    if (typeof handler === 'string') {
+      handler = vm[key];
+    }
+
+    return vm.$watch(key, handler, options); // (监听的变量名, 执行发函数, 监听配置)
+  }
+
+  function stateMixin(Vue) {
+    Vue.prototype.$watch = function (key, handler) {
+      var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+      var vm = this;
+      options.user = true;
+      var watcher = new Watcher(vm, key, handler, options);
+
+      if (options.immediate) {
+        handler.call(vm, watcher.value); // watch监听 第一次就触发
+      }
+
+      return function unwatchFn() {
+        watcher.teardown();
+      };
+    };
+  }
+  /********* watch 监听 end *********/
 
   var ncname = "[a-zA-Z_][\\-\\.0-9_a-zA-Z]*"; // 用来描述标签的
 
@@ -807,143 +1151,6 @@
     }
   } // Vue3采用了最长递增子序列，找到最长不需要移动的序列，从而减少了移动操作
 
-  var callbacks = [];
-  var waiting = false;
-
-  function flushCallbacks() {
-    waiting = false; // 默认第一次会将两次的nextTick 都维护到callbacks中 [用户的，页面渲染的]
-
-    var cbs = callbacks.slice(0);
-    callbacks = [];
-    cbs.forEach(function (cb) {
-      return cb();
-    });
-  } // 异步任务分为 两种 宏任务、微任务
-  // 宏任务 setTimeout setImmediate(ie下支持性能优于setTimeout)
-  // 微任务 promise.then mutationObserver
-  // vue在更新的时候希望尽快的更新页面 promise.then  mutationObserver  setImmediate setTimeout
-  // vue3不在考虑兼容性问题了 所以后续vue3中直接使用promise.then
-
-
-  var timeFunc;
-
-  if (typeof Promise !== 'undefined') {
-    var p = Promise.resolve();
-
-    timeFunc = function timeFunc() {
-      p.then(flushCallbacks);
-    };
-  } else if (typeof MutationObserver !== 'undefined') {
-    var observer = new MutationObserver(flushCallbacks); // mutationObserver放的回调是异步执行的
-
-    var textNode = document.createTextNode(1); // 文本节点内容先是 1
-
-    observer.observe(textNode, {
-      characterData: true
-    });
-
-    timeFunc = function timeFunc() {
-      textNode.textContent = 2; // 改成了2  就会触发更新了
-    };
-  } else if (typeof setImmediate !== 'undefined') {
-    timeFunc = function timeFunc() {
-      setImmediate(flushCallbacks);
-    };
-  } else {
-    timeFunc = function timeFunc() {
-      setTimeout(flushCallbacks, 0);
-    };
-  }
-
-  function nextTick(cb) {
-    callbacks.push(cb);
-
-    if (!waiting) {
-      waiting = true;
-      timeFunc();
-    }
-  }
-
-  var queue = [];
-  var has = {};
-  var pending = false;
-
-  function flushSchedularQueue() {
-    queue.forEach(function (Watcher) {
-      return Watcher.run();
-    });
-    queue = [];
-    has = {};
-    pending = false;
-  }
-
-  function queueWatcher(watcher) {
-    var id = watcher.id;
-
-    if (has[id] == null) {
-      queue.push(watcher);
-      has[id] = true;
-
-      if (!pending) {
-        nextTick(function () {
-          // 万一一个属性 对应多个更新，那么可能会开启多个定时器
-          flushSchedularQueue(); // 批处理操作 ， 防抖
-        });
-        pending = true;
-      }
-    }
-  }
-
-  var wid = 0;
-
-  var Watcher = /*#__PURE__*/function () {
-    function Watcher(vm, fn, cb, options) {
-      _classCallCheck(this, Watcher);
-
-      this.vm = vm;
-      this.fn = fn;
-      this.cb = cb;
-      this.options = options;
-      this.deps = [];
-      this.depsId = new Set();
-      this.id = wid++;
-      this.get(); // 实现页面的渲染
-    }
-
-    _createClass(Watcher, [{
-      key: "get",
-      value: function get() {
-        Dep.target = this;
-        this.fn(); // 去实例中取值  触发getter
-
-        Dep.target = null; // 只有在渲染的时候才有Dep.target属性
-      }
-    }, {
-      key: "addDep",
-      value: function addDep(dep) {
-        var id = dep.id;
-
-        if (!this.depsId.has(id)) {
-          this.deps.push(dep);
-          this.depsId.add(id);
-          dep.addWatcher(this);
-        }
-      }
-    }, {
-      key: "update",
-      value: function update() {
-        queueWatcher(this);
-      }
-    }, {
-      key: "run",
-      value: function run() {
-        this.get(); // 重新执行 updateComponent
-      }
-    }]);
-
-    return Watcher;
-  }(); // watcher 与 dep 多对多关系，一个属性对应多个 watcher, 一个 watcher 对应多个 dep
-
   function lifeCycleMixin(Vue) {
     Vue.prototype._c = function () {
       // 生成 vnode
@@ -1111,33 +1318,12 @@
 
   initMixin(Vue); // 后续在扩展都可以采用这种方式
 
+  stateMixin(Vue);
   lifeCycleMixin(Vue); // 给 Vue 实例添加方法
 
   initGlobalAPI(Vue); // 合并 options
 
-  Vue.prototype.$nextTick = nextTick; // 给Vue添加原型方法我们通过文件的方式来添加，防止所有的功能都在一个文件中来处理
-  var vm1 = new Vue({
-    data: {
-      name: '11111111',
-      age: 11
-    }
-  });
-  var template = "<div style=\"color:red\">\n    <li key=\"A\">A</li>\n    <li key=\"B\">B</li>\n    <li key=\"C\">C</li>\n    <li key=\"D\">D</li>\n</div>";
-  var render = compileToFunction(template);
-  var oldVnode = render.call(vm1);
-  var ele = createElm(oldVnode);
-  document.body.appendChild(ele); // 就让虚拟节点和真实节点做了映射
-  // diff算法的比对是平级比对
-  // 比对的时候 主要比对标签名和key 来判断是不是同一个元素 ，如果标签和key 都一样说明两个元素是同一个元素
-
-  var vm2 = new Vue({});
-  var newTemplate = "<div style=\"color:blue\">\n    <li key=\"M\">M</li>\n    <li key=\"Q\">Q</li>\n    <li key=\"D\">D</li>\n    <li key=\"E\">E</li>\n    <li key=\"F\">F</li>\n</div>";
-  var newRender = compileToFunction(newTemplate);
-  var newVnode = newRender.call(vm2); // diff 算法校验
-
-  setTimeout(function () {
-    patch(oldVnode, newVnode);
-  }, 2000);
+  Vue.prototype.$nextTick = nextTick;
 
   return Vue;
 

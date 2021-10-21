@@ -1,5 +1,6 @@
 import { observe } from "./observe/index";
 import Watcher from "./observe/watcher";
+import Dep, { pushTarget } from "./observe/dep";
 
 export function initState(vm) {
   const options = vm.$options;
@@ -20,6 +21,7 @@ export function initState(vm) {
   }
 }
 
+
 function proxy(vm, source, key) {
   Object.defineProperty(vm, key, {
     get() {
@@ -31,6 +33,7 @@ function proxy(vm, source, key) {
   });
 }
 
+/********* data 数据响应式 start *********/
 function initData(vm) {
   let data = vm.$options.data;
   // 如果是函数就拿到函数的返回值 否则就直接采用data作为数据源
@@ -44,9 +47,48 @@ function initData(vm) {
   }
   observe(data);
 }
+/********* data 数据响应式 end *********/
 
 
 
+/********* computed 计算属性 start *********/
+function initComputed(vm) {
+  const computed = vm.$options.computed
+  const watchers = vm._computedWatchers = {} // 存储所有的 component的 watcher
+  for (const key in computed) {
+    const userDef = computed[key]
+    const getter = typeof userDef === 'function' ? userDef : userDef.get
+    watchers[key] = new Watcher(vm, getter, () => {}, { lazy: true })
+    defineComputed(vm, key)
+  }
+}
+function defineComputed(vm, key) {
+  Object.defineProperty(vm, key, {
+    get: createComputedGetter(key) // 改了重新计算， 没改取缓存
+  })
+}
+function createComputedGetter(key) {
+  return function() {
+    const watcher = this._computedWatchers[key]
+    if (watcher.dirty) { // 如果dirty:true就重新计算，否则就不算了 把以前的值返回
+      watcher.evaluate() // 会调用用户定义的方法将返回值返回,此时dirty为false，并且用户的返回值存放到了watcher.value上
+    }
+    // 在求值的过程中 stack = [渲染watcher，计算属性watcher] Dep.target = 计算属性watcher
+    // 当evaluate执行完毕后 stack = [渲染watcher]  Dep.target  = 渲染watcher
+    // 计算属性是一个watcher  渲染是一个watcher
+    
+    if (Dep.target) { // 让计算属性watcher对应的两个dep 记录渲染watcher即可
+      watcher.depend()
+    }
+    return watcher.value
+  }
+}
+/********* computed 计算属性 end *********/
+
+
+
+
+/********* watch 监听 start *********/
 function initWatch(vm) {
   const watch = vm.$options.watch;
   for (const key in watch) {
@@ -74,7 +116,12 @@ export function stateMixin(Vue) {
     options.user = true
     const watcher = new Watcher(vm, key, handler, options)
     if (options.immediate) {
-      handler.call(vm, watcher.value) // 第一次就触发
+      handler.call(vm, watcher.value) // watch监听 第一次就触发
+    }
+
+    return function unwatchFn () {
+      watcher.teardown()
     }
   }
 }
+/********* watch 监听 end *********/

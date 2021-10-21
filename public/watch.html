@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div id="app">
+        <div>name: {{ name }}</div>
+        <div>o.n: {{ o.n }}</div>
+    </div>
+    
+    <script src="../dist/vue.js"></script>
+    <!-- <script src="https://cdn.bootcdn.net/ajax/libs/vue/2.6.14/vue.js"></script> -->
+    <script>
+        const vm = new Vue({
+            el: '#app',
+            data: {
+                name: '0',
+                o: { n: 0 }
+            },
+            watch: {
+                name: {
+                    handler: (newValue, oldValue) => {
+                        console.log('watch name', newValue, oldValue)
+                    },
+                    immediate: true
+                }
+
+            }
+        });
+        vm.$watch('o.n', (newValue, oldValue) => {
+            console.log('watch o.n', newValue, oldValue)
+        })
+        setTimeout(() => {
+            vm.name = 11111111
+            vm.o.n = 22222222;
+        }, 1000);
+    </script>
+</body>
+
+</html>
