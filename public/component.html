@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div id="app">
+        <my-button></my-button>
+        <my-button></my-button>
+    </div>
+    <script src="../dist/vue.js"></script>
+    <!-- <script src="https://cdn.bootcdn.net/ajax/libs/vue/2.6.14/vue.js"></script> -->
+    <script>
+        // 为什么要使用组件 优点是？ 复用、方便维护、方便组合。 性能可以组件级更新
+        // WebComponent 浏览器天生支持的组件化开发 （兼容性差） 有优秀的webcomponent库
+        // React -> Vue
+        // 全局组件就是可以在任何组件中使用，而不需要注册 （全局组件先理解成是一个原型链的方法，组件会向上查找找到这个组件）
+
+        // Vue.component 内部会调用一个api Vue.extend() 产生一个组件的子类
+        Vue.component('my-button', {
+            name: "xxx",
+            template: "<button>按钮</button>"
+        }); //  new Sub().$mount('某个元素上'); // 每个组件在使用的时候都是通过类来new的
+
+        // 函数式组件没有类， 就是每次调用函数返回一个虚拟节点， 所以函数式组件是没有watcher的
+
+        const vm = new Vue({
+            el: "#app",
+            components: {
+                "my-button": {
+                    beforeCreate() {
+                        console.log('before Create 1')
+                    },
+                    template: "<button>我的按钮1111 </button>"
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

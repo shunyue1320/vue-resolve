@@ -904,26 +904,70 @@
       children[_key - 3] = arguments[_key];
     }
 
-    return vnode(vm, tag, data, children, data.key, null);
+    // 可能要创造组件的虚拟节点
+    if (isReveredTag(tag)) {
+      // 创建元素的虚拟节点
+      return vnode(vm, tag, data, children, data.key, null);
+    } else {
+      // 创造组件的虚拟节点 ， 组件需要找到组件的模板去进行渲染
+      var Ctor = vm.$options.components[tag]; // 可能是对象 也有可能是一个类
+      // 稍后我们会初始化组件 需要组件的构造函数
+
+      return createComponent$1(vm, tag, data, children, data.key, Ctor);
+    }
   }
+
+  var init = function init(vnode) {
+    var child = vnode.componentInstance = new vnode.componentOptions.Ctor({}); // 放插槽属性
+
+    child.$mount();
+  };
+
+  function isReveredTag(tag) {
+    var tagList = ['a', 'div', 'img', 'button', 'input', 'p', 'span'];
+    return tagList.includes(tag);
+  }
+
+  function createComponent$1(vm, tag, data, children, key, Ctor) {
+    if (_typeof(Ctor) === 'object' && Ctor !== null) {
+      var VueCtor = vm.$options._base;
+      Ctor = VueCtor.extend(Ctor);
+    }
+
+    data.hook = {
+      // 稍后我们通过虚拟节点创造真实节点的时候 ，就调用这个init方法
+      init: init
+    };
+    return vnode(vm, tag, data, undefined, key, undefined, {
+      Ctor: Ctor,
+      children: children
+    });
+  }
+
   function createTextNode(vm, text) {
     return vnode(vm, undefined, undefined, undefined, undefined, text);
   }
 
-  function vnode(vm, tag, data, children, key, text) {
+  function vnode(vm, tag, data, children, key, text, componentOptions) {
     return {
       vm: vm,
       tag: tag,
       data: data,
       children: children,
       key: key,
-      text: text // ...
+      text: text,
+      componentOptions: componentOptions // ...
 
     };
   }
 
   function patch(oldVnode, vnode) {
     // oldVnode 可能是后续做虚拟节点的时候 是两个虚拟节点的比较
+    if (!oldVnode) {
+      // 这是组件的挂载
+      return createElm(vnode); // 创造了组件的真实节点
+    }
+
     console.log("oldVnode", oldVnode, "vnode", vnode);
     var isRealElement = oldVnode.nodeType;
 
@@ -985,6 +1029,20 @@
     return n1.tag == n2.tag && n1.key === n2.key;
   }
 
+  function createComponent(vnode) {
+    var i = vnode.data;
+
+    if ((i = i.hook) && (i = i.init)) {
+      i(vnode); // 去调用组件的初始化方法，进行组件的初始化操作
+    }
+
+    if (vnode.componentInstance) {
+      return true;
+    }
+
+    return false; // 如果没有init则是一个普通的元素
+  }
+
   function createElm(vnode) {
     var tag = vnode.tag;
         vnode.data;
@@ -993,6 +1051,10 @@
 
     if (typeof tag === 'string') {
       // 元素
+      if (createComponent(vnode)) {
+        return vnode.componentInstance.$el; // 返回组件对应的模板渲染后的dom元素
+      }
+
       vnode.el = document.createElement(tag); // 后续我们需要diff算法 拿虚拟节点比对后更新dom
 
       children.forEach(function (child) {
@@ -1220,14 +1282,54 @@
 
   function initGlobalAPI(Vue) {
     Vue.options = {};
+    Vue.options.components = {}; // 用来存放全局组件的
+
+    Vue.options._base = Vue;
 
     Vue.mixin = function (options) {
       this.options = mergeOptions(this.options, options);
       return this;
     };
+
+    Vue.component = function (id, definition) {
+      definition.name = definition.name || id; // 只是做一个标识 ， 为了在自己家中可以使用自己 
+
+      definition = this.options._base.extend(definition); // Vue.extend()
+
+      this.options.components[id] = definition;
+    }; // 每次使用组件 都是通过同一个对象生成的实例 Vue.component('id',{})
+
+
+    Vue.extend = function (extendOptions) {
+      var Super = this;
+
+      var Sub = function VueComponent(options) {
+        // 后续会new 这个子类，做组件的初始化
+        this._init(options);
+      };
+
+      Sub.prototype = Object.create(Super.prototype);
+      Sub.prototype.constructor = Sub; // 由Vue.extend 传入的参数 和 全局的方法做的合并
+
+      Sub.options = mergeOptions(Super.options, extendOptions);
+      return Sub;
+    };
   }
   var LIFECYCLE_HOOKS = ['beforeCreate', 'mounted'];
-  var strats = {};
+  var strats = {}; // 组件的合并 全局组件会以原型链的方式赋值到我们的组件实例上
+
+  strats.components = function (parant, child) {
+    var res = Object.create(parant); // xxx.__proto__ =  全局的组件
+
+    if (child) {
+      for (var key in child) {
+        res[key] = child[key];
+      }
+    }
+
+    return res;
+  };
+
   LIFECYCLE_HOOKS.forEach(function (hook) {
     strats[hook] = function (parentVal, childVal) {
       if (childVal) {

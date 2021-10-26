@@ -1,4 +1,7 @@
 export function patch(oldVnode,vnode){     // oldVnode 可能是后续做虚拟节点的时候 是两个虚拟节点的比较
+  if (!oldVnode) { // 这是组件的挂载
+    return createElm(vnode); // 创造了组件的真实节点
+  }
   console.log("oldVnode", oldVnode, "vnode", vnode)
   const isRealElement = oldVnode.nodeType
   if(isRealElement){ // 如果有 说明他是一个 dom 元素 (直接挂载 不需要 diff)
@@ -59,9 +62,23 @@ function isSameVnode(n1, n2) {
   return n1.tag == n2.tag && n1.key === n2.key
 }
 
+function  createComponent(vnode) {
+  let i = vnode.data
+  if ((i = i.hook) && (i = i.init)) {
+    i(vnode) // 去调用组件的初始化方法，进行组件的初始化操作
+  }
+  if (vnode.componentInstance) {
+    return true
+  }
+  return false // 如果没有init则是一个普通的元素
+}
+
 export function createElm(vnode) {
   let { tag, data, children, text } = vnode
   if(typeof tag === 'string'){                // 元素
+    if (createComponent(vnode)) {
+      return vnode.componentInstance.$el      // 返回组件对应的模板渲染后的dom元素
+    }
     vnode.el = document.createElement(tag)    // 后续我们需要diff算法 拿虚拟节点比对后更新dom
     children.forEach(child => {
       vnode.el.appendChild(createElm(child))  // 递归渲染
